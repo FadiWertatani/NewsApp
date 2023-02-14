@@ -1,11 +1,10 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:new_app/modules/business/business.dart';
 import 'package:new_app/modules/science/science.dart';
-import 'package:new_app/modules/settings/settings.dart';
 import 'package:new_app/modules/sports/sports.dart';
 import 'package:new_app/shared/cubit/states.dart';
+import 'package:new_app/shared/network/local/cache_helper.dart';
 import 'package:new_app/shared/network/remote/dio_helper.dart';
 
 class NewsCubit extends Cubit<NewsStates> {
@@ -19,7 +18,6 @@ class NewsCubit extends Cubit<NewsStates> {
     const BusinessScreen(),
     const SportsScreen(),
     const ScienceScreen(),
-    const SettingScreen(),
   ];
 
   List<BottomNavigationBarItem> bottomItems = const [
@@ -35,14 +33,11 @@ class NewsCubit extends Cubit<NewsStates> {
       icon: Icon(Icons.science_outlined),
       label: 'science',
     ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.settings_outlined),
-      label: 'settings',
-    ),
   ];
 
   void changeIndex(int index){
     currentIndex = index;
+    if(index == 0) getBusiness();
     if(index == 1) getSports();
     if(index == 2) getScience();
     emit(NewsBottomNavState());
@@ -117,6 +112,43 @@ class NewsCubit extends Cubit<NewsStates> {
     }else{
       emit(NewsGetScienceSuccessState());
     }
+  }
+
+  List<dynamic> search = [];
+
+  void getSearch(String value){
+    emit(NewsGetSearchLoadingState());
+
+    search = [];
+
+    DioHelper.getData(
+      url: 'v2/everything',
+      query: {
+        'q': '$value',
+        'apiKey':'38e19f21515247bd9ec9dc8f0605d532',
+      },
+    ).then((value) {
+      search = value.data['articles'];
+      emit(NewsGetSearchSuccessState());
+    }).catchError((error){
+      print(error.toString());
+      emit(NewsGetSearchErrorState(error));
+    });
+  }
+
+  bool isDark = false;
+
+  void changeAppMode({bool? fromShared}){
+    if(fromShared!=null){
+      isDark = fromShared;
+      emit(AppModeChangeState());
+    }else{
+      isDark = !isDark;
+      CacheHelper.putData('isDark', isDark).then((value){
+        emit(AppModeChangeState());
+      });
+    }
+
   }
 
 }
